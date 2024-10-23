@@ -55,7 +55,7 @@ class BancoDeDadosPostgres:
             self.conexao.commit()
 
             sql_funcionario = 'INSERT INTO biblioteca.funcionarios (id_funcionario, usuario_login, cargo, salario) VALUES (%s, %s, %s, %s)'
-            valores_funcionario = (id_funcionario, login, cargo, salario)
+            valores_funcionario = (salario, login, cargo, id_funcionario)
             self.cursor.execute(sql_funcionario, valores_funcionario)
             self.conexao.commit()
 
@@ -66,7 +66,7 @@ class BancoDeDadosPostgres:
             return False
         
         #inserir funcionário com usuário já existente
-    def inserir_funcionario_existente(self, id_funcionario, login, cargo, salario):
+    def inserir_funcionario_existente(self, salario, cargo, id_funcionario, login):
         try:
             sql = 'INSERT INTO biblioteca.funcionarios (id_funcionario, usuario_login, cargo, salario) VALUES (%s, %s, %s, %s)'
             valores_funcionario = (id_funcionario, login, cargo, salario)
@@ -112,7 +112,7 @@ class BancoDeDadosPostgres:
             return False
 
     # update separado
-    def update_funcionario_cargo(self, id_funcionario, cargo):
+    def update_funcionario_cargo(self, cargo, id_funcionario):
         try:
             sql = 'UPDATE biblioteca.funcionarios SET cargo = %s WHERE id_funcionario = %s'
             valores = (cargo, id_funcionario)
@@ -284,13 +284,49 @@ class BancoDeDadosPostgres:
     def deletar_funcionario_em_departamento(self, login_funcionario):
         try:
             sql = 'DELETE FROM biblioteca.funcionarios_has_departamento WHERE login_funcionario = %s'
-            self.cursor.execute(sql, login_funcionario)
+            self.cursor.execute(sql, (login_funcionario,))
             self.conexao.commit()
             print("Funcionário removido do departamento com sucesso.")
             return True
         except psycopg2.Error as err:
             print(f"Erro ao deletar funcionário em departamento: {err}")
             return False
+        
+    ###TRANSAÇÃO###
+    def transacao_consulta_insercao(self, id_funcionario, novo_cargo, novo_salario):
+        try:
+            # Iniciar a transação
+            self.conexao.autocommit = False
+
+            sql_consulta = 'SELECT * FROM biblioteca.funcionarios WHERE id_funcionario = %s'
+            self.cursor.execute(sql_consulta, (id_funcionario,))
+            funcionario = self.cursor.fetchone()
+
+            if funcionario:
+                print(f"Funcionário encontrado: {funcionario}")
+
+                    # Operação de inserção/atualização (exemplo: atualizar o cargo e salário do funcionário)
+                sql_atualizacao = 'UPDATE biblioteca.funcionarios SET cargo = %s, salario = %s WHERE id_funcionario = %s'
+                valores_atualizacao = (novo_cargo, novo_salario, id_funcionario)
+                self.cursor.execute(sql_atualizacao, valores_atualizacao)
+
+                    # Confirmar a transação
+                self.conexao.commit()
+                print("Transação concluída com sucesso.")
+                return True
+            else:
+                print("Funcionário não encontrado.")
+                return False
+
+        except psycopg2.Error as err:
+                # Reverter a transação em caso de erro
+            self.conexao.rollback()
+            print(f"Erro na transação: {err}")
+            return False
+
+        finally:
+                # Restaurar o autocommit padrão
+            self.conexao.autocommit = True
 
 # Inicialização da API Flask
 app = Flask(__name__)
@@ -349,7 +385,7 @@ def criar_funcionario_existente():
     if sucesso:
         return jsonify({'mensagem': 'Funcionario inserido com sucesso'}), 201
     else:
-        return jsonify({'mensagem': 'Erro ao inserir funcionario, login do usuário'}), 400
+        return jsonify({'mensagem': 'Erro ao inserir funcionario'}), 400
 
 # read tabela
 @app.route('/funcionarios', methods=['GET'])
@@ -521,6 +557,16 @@ def deletar_funcionario_em_departamento(login_funcionario):
         return jsonify({'mensagem': 'Funcionario removido do departamento com sucesso'}), 200
     else:
         return jsonify({'mensagem': 'Erro ao remover funcionario do departamento'}), 400
+
+# transação
+@app.route('/transacao-funcionario', methods=['PUT'])
+def transacao_funcionario():
+    dados = request.json
+    sucesso = bd.transacao_consulta_insercao(dados['id_funcionario'], dados['novo_cargo'], dados['novo_salario'])
+    if sucesso:
+        return jsonify({'mensagem': 'Transação realizada com sucesso'}), 200
+    else:
+        return jsonify({'mensagem': 'Erro ao realizar a transação'}), 400
 
 if __name__ == '__main__':
     app.run(port=5000, host='0.0.0.0', debug=True)
