@@ -1,6 +1,6 @@
 CREATE SCHEMA biblioteca;
-CREATE DOMAIN status_dom AS VARCHAR(3)
-CHECK (VALUE IN ('ATV', 'INA', 'RES'));
+CREATE DOMAIN status_dom AS VARCHAR(9)
+CHECK (VALUE IN ('ATIVO', 'INATIVO'));
 CREATE DOMAIN cod_usuario_domain AS VARCHAR(30)
 CHECK (VALUE ~ '^[A-Za-z0-9]+$');
 
@@ -90,7 +90,7 @@ CREATE TABLE biblioteca.cliente (
 );
 
 CREATE TABLE biblioteca.livro (
-	ISBN INT,
+	ISBN BIGINT,
 	titulo VARCHAR(50) NOT NULL,
 	ano_publi DATE NOT NULL,
 	descricao VARCHAR(1000) NOT NULL,
@@ -108,10 +108,11 @@ CREATE TABLE biblioteca.livro (
 	ON UPDATE CASCADE
 );
 
+
 CREATE TABLE biblioteca.exemplar(
 	cod_ex VARCHAR(30) NOT NULL UNIQUE,
-	livro_ISBN INT NOT NULL,
-	status status_dom NOT NULL,
+	livro_ISBN BIGINT NOT NULL,
+	status VARCHAR(13) NOT NULL,
 	disponibilidade VARCHAR(3) NOT NULL,
 	CONSTRAINT pk_exemplar PRIMARY KEY (cod_ex, livro_ISBN),
 	CONSTRAINT fk_exemplar_livro
@@ -127,7 +128,7 @@ CREATE TABLE biblioteca.emprestimo(
 	dt_emprestimo DATE NOT NULL,
 	dt_devolucao DATE NOT NULL,
 	exemplar_codigo_ex VARCHAR(30) NOT NULL,
-	exemplar_livro_ISBN INT NOT NULL,
+	exemplar_livro_ISBN BIGINT NOT NULL,
 	funcionarios_id_funcionario INT NOT NULL,
 	cliente_usuario_login VARCHAR(30) NOT NULL,
 	PRIMARY KEY (cod_emprestimo, exemplar_codigo_ex, exemplar_livro_ISBN),
@@ -151,7 +152,7 @@ CREATE TABLE biblioteca.emprestimo(
 CREATE TABLE biblioteca.reserva (
 	cod_reserva INT,
 	dt_reserva DATE NOT NULL,
-	status status_dom NOT NULL DEFAULT 'Pendente',
+	status VARCHAR(20) NOT NULL,
 	emprestimo_cod_emprestimo INT,
 	livro VARCHAR(30) NOT NULL,
 	CONSTRAINT pk_reserva PRIMARY KEY (cod_reserva),
@@ -169,7 +170,7 @@ CREATE TABLE biblioteca.reserva (
 
 CREATE TABLE biblioteca.multa (
 	cod_multa INT NOT NULL UNIQUE,
-	status status_dom NOT NULL,
+	status VARCHAR(15) NOT NULL,
 	descricao VARCHAR(50) NOT NULL,
 	valor FLOAT NOT NULL  CHECK (valor > 0),
 	emprestimo_cod_emprestimo INT NOT NULL,
@@ -223,7 +224,7 @@ CREATE TABLE biblioteca.autor (
 
 CREATE TABLE biblioteca.fornecedor_has_livro (
 	fornecedor_cnpj VARCHAR(14) NOT NULL,
-	livro_ISBN INT NOT NULL UNIQUE,
+	livro_ISBN BIGINT NOT NULL UNIQUE,
 	historico_vendas VARCHAR(45) NULL,
 	CONSTRAINT pk_fornecedor_livro PRIMARY KEY (fornecedor_cnpj, livro_ISBN),
 	CONSTRAINT fk_fornecedor_has_livro_fornecedor
@@ -240,7 +241,7 @@ CREATE TABLE biblioteca.fornecedor_has_livro (
 
 CREATE TABLE biblioteca.genero_has_livro (
 	genero_cod_genero INT NOT NULL,
-	livro_ISBN INT NOT NULL,
+	livro_ISBN BIGINT NOT NULL,
 	CONSTRAINT pk_genero_livro PRIMARY KEY (genero_cod_genero, livro_ISBN),
 	CONSTRAINT fk_genero_has_livro_genero
 	FOREIGN KEY (genero_cod_genero)
@@ -256,7 +257,7 @@ CREATE TABLE biblioteca.genero_has_livro (
 
 CREATE TABLE biblioteca.editora_has_livro (
 	editora_cnpj VARCHAR(14) NOT NULL,
-	livro_ISBN INT NOT NULL,
+	livro_ISBN BIGINT NOT NULL,
 	CONSTRAINT pk_editora_livro PRIMARY KEY (editora_cnpj, livro_ISBN),
 	CONSTRAINT fk_editora_has_livro_editora
 	FOREIGN KEY (editora_cnpj)
@@ -272,7 +273,7 @@ CREATE TABLE biblioteca.editora_has_livro (
 
 CREATE TABLE biblioteca.autor_has_livro (
 	autor_cod_autor INT NOT NULL,
-	livro_ISBN INT NOT NULL,
+	livro_ISBN BIGINT NOT NULL,
 	CONSTRAINT pk_autor_livro PRIMARY KEY (autor_cod_autor, livro_ISBN),
 	CONSTRAINT fk_autor_has_livro_autor
 	FOREIGN KEY (autor_cod_autor)
@@ -287,7 +288,7 @@ CREATE TABLE biblioteca.autor_has_livro (
 );
 
 CREATE TABLE biblioteca.livro_has_categoria (
-	livro_ISBN INT NOT NULL,
+	livro_ISBN BIGINT NOT NULL,
 	categoria_cod_categoria INT NOT NULL,
 	CONSTRAINT pk_categoria_livro 
 	PRIMARY KEY (livro_ISBN, categoria_cod_categoria),
